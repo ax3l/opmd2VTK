@@ -144,6 +144,7 @@ class Opmd2VTK:
                     vtk_container.append( self._convert_field_scl(fld) )
 
             # write VTK file
+            #print(field_type, vtk_container)
             vtk.VtkData(self.grid, vtk.PointData(*vtk_container))\
                 .tofile(self.path+'vtk_fields_'+istr, format=format)
         else:
@@ -219,6 +220,7 @@ class Opmd2VTK:
                   "and option CommonMesh=True is used")
 
         flds = np.array(flds).T
+        #print(flds.shape)
         vecs = vtk.Vectors(flds, name=fld)
 
         return vecs
@@ -316,9 +318,9 @@ class Opmd2VTK:
                                            iteration=self.iteration)
 
         # register the grid dimensions
-        self.dimensions = fld_data.shape
+        self.dimensions = fld_data.shape[::-1]
 
-        fld_data = fld_data.astype(self.dtype).T.ravel()
+        fld_data = fld_data.astype(self.dtype).ravel()
 
         return fld_data, info
 
@@ -364,16 +366,16 @@ class Opmd2VTK:
         # Write the field for th=0
         # Note: array contain a copy of th=0 at th=2*pi, which is
         # needed to close have a closed cylinder
-        fld3d[:,:,0] = fld2d[Nr:].T.astype(self.dtype)
-        fld3d[:,:,-1] = fld2d[Nr:].T.astype(self.dtype)
-        fld3d[:,:,self.Nth//2] = fld2d[:Nr][::-1].T.astype(self.dtype)
+        fld3d[:,:,0] = fld2d[Nr:].astype(self.dtype)
+        fld3d[:,:,-1] = fld2d[Nr:].astype(self.dtype)
+        fld3d[:,:,self.Nth//2] = fld2d[:Nr][::-1].astype(self.dtype)
 
         # Write the fields for all other angles
         for i, th in enumerate(theta[1:]):
             fld2d, info = self.ts.get_field(fld, coord=comp, slicing=None,
                                             iteration=self.iteration, theta=th)
-            fld3d[:,:,i+1] = fld2d[Nr:].T.astype(self.dtype)
-            fld3d[:,:,i+1+self.Nth//2] = fld2d[:Nr][::-1].T.astype(self.dtype)
+            fld3d[:,:,i+1] = fld2d[Nr:].astype(self.dtype)
+            fld3d[:,:,i+1+self.Nth//2] = fld2d[:Nr][::-1].astype(self.dtype)
 
         fld3d = fld3d.ravel()
         fld2d = None
@@ -393,7 +395,7 @@ class Opmd2VTK:
 
         # Get origin and resolution of the 3D visualization domain
         origin = self._get_origin_3d()
-        resolutions = (self.info.dx, self.info.dy, self.info.dz)
+        resolutions = (self.info.dz, self.info.dy, self.info.dx)
 
         # register the grid VTK container
         self.grid = vtk.StructuredPoints(self.dimensions, origin,
@@ -492,7 +494,7 @@ class Opmd2VTK:
         return (z.min(), -r.max())
 
     def write_species_vtk(self, species=None, iteration=0, format='binary',
-                          scalars=['ux', 'uy', 'uz', 'w'], select=None,
+                          scalars=['charge', 'mass', 'x', 'y', 'z', 'ux', 'uy', 'uz', 'w'], select=None,
                           zmin_fixed=None):
         """
         Convert the given list of species from the openPMD format to
